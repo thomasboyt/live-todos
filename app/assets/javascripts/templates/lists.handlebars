@@ -1,0 +1,25 @@
+<h2>Lists</h2>
+
+<div class="lists-viewport">
+  <div class="lists-container">
+    {{#each controller}}
+      {{#if isLoaded}}
+        <div class="list">
+          <h3>{{title}}</h3>
+          {{#render 'items' items}}
+            <ul>
+              {{#each controller}}
+                {{#view RealtimeTodos.ItemView contentBinding=this tagName='li'}}
+                  {{text}}
+                {{/view}}
+              {{/each}}
+              <li><a href="#" {{action "addNewItem" target="controller"}}>Add new item</a></li>
+            </ul>
+          {{/render}}
+        </div>
+      {{/if}}
+    {{/each}}
+  </div>
+</div>
+
+<a href="#" {{action "addNew"}}>Add New List</a>

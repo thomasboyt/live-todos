@@ -1,0 +1,10 @@
+{
+  "rules": {
+    "lists": {
+      "$list": {
+        ".read": "data.child('users').child(auth.id).exists()",
+        ".write": "data.child('users').child(auth.id).exists()"
+      }
+    }
+  }
+}

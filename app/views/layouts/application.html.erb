@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Realtime Todos</title>
+  <%= stylesheet_link_tag    "application", :media => "all" %>
+
+  <!-- CDN-only scripts -->
+  <script type='text/javascript' src='https://cdn.firebase.com/v0/firebase.js'></script>
+  <script type='text/javascript'
+        src='https://cdn.firebase.com/v0/firebase-auth-client.js'></script>
+  <script type='text/javascript' src='https://login.persona.org/include.js'></script>
+
+  <%= javascript_include_tag "application" %>
+  <%= csrf_meta_tags %>
+</head>
+<body>
+
+<%= yield %>
+
+</body>
+</html>
