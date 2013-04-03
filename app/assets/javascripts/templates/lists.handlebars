@@ -12,6 +12,7 @@
                 {{view RealtimeTodos.ItemView contentBinding=this tagName='li'}}
               {{/each}}
               <li><a href="#" {{action "addNewItem" target="controller"}}>Add new item</a></li>
+              <li><a href="#" {{action "clearDoneItems"}}>Clear done items</a></li>
             </ul>
           {{/render}}
         </div>

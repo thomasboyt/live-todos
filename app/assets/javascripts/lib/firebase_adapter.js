@@ -136,6 +136,15 @@ DS.Firebase.Adapter = DS.Adapter.extend({
     store.didSaveRecords(records);
   },
 
+  deleteRecords: function(store, type, records) {
+    console.log("deletin'");
+    records.forEach(function(record) {
+      var ref = record.getRef();
+      ref.remove();
+    });
+    store.didSaveRecords(records);
+  },
+
   find: function(store, type, id) {
     var ref = this._getRefForType(type).child(id);
     ref.once("value", function(snapshot) {
@@ -200,19 +209,29 @@ DS.Firebase.LiveModel = DS.Model.extend({
       }.bind(this));
 
     if (key) {
-      parentRef = this.get(key).getRef();
+      if (this.get(key)) {
+        parentRef = this.get(key).getRef();
+      }
+      else {
+        // probably will be deleted
+        return this.get("_ref");
+      }
     }
     else {
       parentRef = adapter.fb;
     }
 
+    var ref;
     if (!this.get("id")) {
-      var newRef = parentRef.child(name).push();
-      this.set("id", newRef.name());
-      return newRef;
+      ref = parentRef.child(name).push();
+      this.set("id", ref.name());
     }
-    else
-      return parentRef.child(name).child(this.get("id"));
+    else {
+      ref = parentRef.child(name).child(this.get("id"));
+    }
+
+    this.set("_ref", ref);
+    return ref;
   },
 
   init: function() {
@@ -220,13 +239,13 @@ DS.Firebase.LiveModel = DS.Model.extend({
 
     this.on("didLoad", this._initLiveBindings.bind(this));
     this.on("didCreate", this._initLiveBindings.bind(this));
+    //this.on("didDelete", this._killLiveBindings.bind(this));
   },
 
   _initLiveBindings: function() {
     if (!this.get("_liveBindingsEnabled")) {
       this.set("_liveBindingsEnabled", true);
       var ref = this.getRef();
-      console.log("binding " + ref.toString());
 
       var attrs = Ember.get(this.constructor, "attributes");
 
@@ -281,9 +300,25 @@ DS.Firebase.LiveModel = DS.Model.extend({
 
               // keeps the record from being attempted to be saved back to
               // the server
-              rec.get('stateManager').send('becameClean');
+              rec.get('stateManager').send('willCommit');
+              rec.get('stateManager').send('didCommit');
 
               rec._initLiveBindings();
+            }.bind(this));
+
+            ref.child(relationship.key).on("child_removed", function(snapshot) {
+              var id = snapshot.name();
+
+              var ids = this.get(relationship.key).map(function(item) {return item.get("id")});
+              if (!(ids.contains(id))) { return; }
+
+              var rec = this.get(relationship.key).find(function(item) {return item.get("id") == id});
+              
+              rec.deleteRecord();
+
+              // fake sync
+              rec.get('stateManager').send('willCommit');
+              rec.get('stateManager').send('didCommit');
             }.bind(this));
           }
 
@@ -296,7 +331,6 @@ DS.Firebase.LiveModel = DS.Model.extend({
 
               var mdl = relationship.type.find(id);
               
-              //todo: this may not be needed
               this.get(relationship.key).pushObject(mdl);
             }.bind(this));
           }
