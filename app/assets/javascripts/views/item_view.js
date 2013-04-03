@@ -1,10 +1,6 @@
 RealtimeTodos.ItemView = Ember.View.extend({
   templateName: "item",
   click: function() {
-    //var title = prompt("New text");
-    //this.get("content").set("text", title);
-    //RealtimeTodos.store.commit();
-    console.log(this.get("content.isEditing"));
     if (this.get("content.isEditing") == false) {
       this.set("content.isEditing", true);
     }
