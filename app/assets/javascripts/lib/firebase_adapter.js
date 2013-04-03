@@ -4,12 +4,32 @@
 DS.Firebase = {};
 
 DS.Firebase.Serializer = DS.JSONSerializer.extend({
+
+  // thanks @rpflorence's localStorage adapter
   extract: function(loader, json, type, record) {
     this._super(loader, this.rootJSON(json, type), type, record);
   },
   
   extractMany: function(loader, json, type, records) {
     this._super(loader, this.rootJSON(json, type, 'pluralize'), type, records);    
+  },
+
+  rootJSON: function(json, type, pluralize) {
+    var root = this.rootForType(type);
+    if (pluralize == 'pluralize') { root = this.pluralize(root); }
+    var rootedJSON = {};
+    rootedJSON[root] = json;
+    return rootedJSON;
+  },
+
+  extractHasMany: function(parent, data, key) {
+    var items = data[key];
+    var ids = [];
+    for (i in items) {
+      ids.push(items[i]);
+    }
+    
+    return ids;
   },
 
   extractEmbeddedHasMany: function(loader, relationship, array, parent, prematerialized) { 
@@ -23,21 +43,13 @@ DS.Firebase.Serializer = DS.JSONSerializer.extend({
     });
 
     // turn {id: resource} -> [resource] with id property
-    for (key in array) {
+    for (var key in array) {
      var obj = Ember.copy(array[key]);
      obj.id = key;
      obj[match] = parent.id;
      objs.push(obj);
     };
     this._super(loader, relationship, objs, parent, prematerialized);
-  },
-
-  rootJSON: function(json, type, pluralize) {
-    var root = this.rootForType(type);
-    if (pluralize == 'pluralize') { root = this.pluralize(root); }
-    var rootedJSON = {};
-    rootedJSON[root] = json;
-    return rootedJSON;
   },
 
   // slightly modified from json serializer
@@ -53,12 +65,19 @@ DS.Firebase.Serializer = DS.JSONSerializer.extend({
 
     // if not embedded, just add array of ids
     if (embeddedType !== 'always') { 
-      var ids = [];
-      manyArray.forEach(function (childRecord) {
-        childRecord.getRef(record.get("id"));     // hacky - forces id creation
-        ids.push(childRecord.get("id"));
+      record.getRef().child(key).once("value", function(snapshot) {
+        var ids = [];
+        snapshot.forEach(function (childSnap) {
+          ids.push(childSnap.val());
+        });
+
+        manyArray.forEach(function (childRecord) {
+          childRecord.getRef(record.get("id"));     // hacky - forces id creation
+          if (!ids.contains(childRecord.get("id")))
+            record.getRef().child(key).push(childRecord.get("id"));
+        });
       });
-      hash[key] = ids;
+
       return; 
     }
 
@@ -101,7 +120,7 @@ DS.Firebase.Adapter = DS.Adapter.extend({
       // goofy. causes child_added callback to ignore local additions, 
       // preventing duplicate items
       this.localLock = true;
-      var newRef = ref.set(data);
+      ref.update(data);
       this.localLock = false;
     }.bind(this));
     store.didSaveRecords(records);
@@ -112,7 +131,7 @@ DS.Firebase.Adapter = DS.Adapter.extend({
       var ref = record.getRef();
       var data = record.serialize();
       
-      ref.set(data);
+      ref.update(data);
     }.bind(this));
     store.didSaveRecords(records);
   },
@@ -121,7 +140,7 @@ DS.Firebase.Adapter = DS.Adapter.extend({
     var ref = this._getRefForType(type).child(id);
     ref.once("value", function(snapshot) {
       // TODO: ew, silent failure.
-      var data = snapshot.val() || {};
+      var data = Ember.copy(snapshot.val()) || {};
       data.id = id;
       
       this.didFindRecord(store, type, data, id);
@@ -199,20 +218,29 @@ DS.Firebase.LiveModel = DS.Model.extend({
   init: function() {
     this._super();
 
-    this.on("didLoad", function() {
+    this.on("didLoad", this._initLiveBindings.bind(this));
+    this.on("didCreate", this._initLiveBindings.bind(this));
+  },
+
+  _initLiveBindings: function() {
+    if (!this.get("_liveBindingsEnabled")) {
+      this.set("_liveBindingsEnabled", true);
       var ref = this.getRef();
+      console.log("binding " + ref.toString());
+
+      var attrs = Ember.get(this.constructor, "attributes");
 
       // hasOwnProperty on attributes checks that the property is an attribute and not a
       // child object (or array of ids of child objects)
       ref.on("child_added", function(prop) {
-        if (this._data.attributes.hasOwnProperty(prop.name()) && (this.get(prop.name()) === null)) {
+        if (attrs.get(prop.name()) && (this.get(prop.name()) === null)) {
           console.log("child added " + prop.name());
           this.set(prop.name(), prop.val());
         }
       }.bind(this));
 
       ref.on("child_changed", function(prop) {
-        if (this._data.attributes.hasOwnProperty(prop.name()) && prop.val() !== this.get(prop.name())) {
+        if (attrs.get(prop.name()) && prop.val() !== this.get(prop.name())) {
           console.log("child changed " + prop.name());
           this.set(prop.name(), prop.val());
         }
@@ -223,6 +251,8 @@ DS.Firebase.LiveModel = DS.Model.extend({
 
       this.get("constructor.relationshipsByName").forEach(function(name, relationship) {
         if (relationship.kind == "hasMany") {
+
+          // embedded relationship
           if (relationship.options.embedded == "always") {
             ref.child(relationship.key).on("child_added", function(snapshot) {
               var id = snapshot.name();
@@ -245,16 +275,34 @@ DS.Firebase.LiveModel = DS.Model.extend({
 
               if(match) data[match] = this;
 
+              // TODO: this kind of sucks. it's a workaround for didFindRecord
+              // not playing nice with associations, for whatever reason.
               var rec = relationship.type.createRecord(data);
 
               // keeps the record from being attempted to be saved back to
               // the server
-              rec.get('stateManager').send('becameClean');                
+              rec.get('stateManager').send('becameClean');
+
+              rec._initLiveBindings();
+            }.bind(this));
+          }
+
+          else {
+            ref.child(relationship.key).on("child_added", function(snapshot) {
+              var id = snapshot.val();
+
+              var ids = this.get(relationship.key).map(function(item) {return item.get("id")});
+              if (ids.contains(id)) { return; }
+
+              var mdl = relationship.type.find(id);
+              
+              //todo: this may not be needed
+              this.get(relationship.key).pushObject(mdl);
             }.bind(this));
           }
         }
-      }.bind(this));
-    }.bind(this));
+      }.bind(this))
+    }
   },
 
 });

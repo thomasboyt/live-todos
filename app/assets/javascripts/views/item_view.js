@@ -15,6 +15,9 @@ RealtimeTodos.ItemStaticView = Ember.View.extend({
 });
 
 RealtimeTodos.ItemEditingView = Ember.TextField.extend({
+  didInsertElement: function() {
+    this.$().focus();
+  },
   focusOut: function() {
     this.set("content.isEditing", false);
     RealtimeTodos.store.commit();
