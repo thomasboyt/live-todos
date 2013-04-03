@@ -1,0 +1,9 @@
+{{#if isEditing}}
+  {{view RealtimeTodos.ItemEditingView contentBinding=this valueBinding="text"}}
+{{else}}
+  {{view RealtimeTodos.ItemStaticView contentBinding=this}}
+{{/if}}
+
+<div style="float:right">
+  {{view RealtimeTodos.ItemCheckboxView checkedBinding="done"}}
+</div>

@@ -1,4 +1,4 @@
-// deps: global jquery, global DS, global Firebase
+// deps: global Ember, global DS, global Firebase
 //
 
 DS.Firebase = {};
@@ -29,7 +29,6 @@ DS.Firebase.Serializer = DS.JSONSerializer.extend({
      obj[match] = parent.id;
      objs.push(obj);
     };
-
     this._super(loader, relationship, objs, parent, prematerialized);
   },
 
@@ -121,6 +120,7 @@ DS.Firebase.Adapter = DS.Adapter.extend({
   find: function(store, type, id) {
     var ref = this._getRefForType(type).child(id);
     ref.once("value", function(snapshot) {
+      // TODO: ew, silent failure.
       var data = snapshot.val() || {};
       data.id = id;
       
@@ -205,18 +205,56 @@ DS.Firebase.LiveModel = DS.Model.extend({
       // hasOwnProperty on attributes checks that the property is an attribute and not a
       // child object (or array of ids of child objects)
       ref.on("child_added", function(prop) {
-        if (this._data.attributes.hasOwnProperty(prop.name()) && !(this.get(prop.name()))) {
+        if (this._data.attributes.hasOwnProperty(prop.name()) && (this.get(prop.name()) === null)) {
+          console.log("child added " + prop.name());
           this.set(prop.name(), prop.val());
         }
       }.bind(this));
 
       ref.on("child_changed", function(prop) {
-        if (this._data.attributes.hasOwnProperty(prop.name()) && prop.val() != this.get(prop.name())) {
+        if (this._data.attributes.hasOwnProperty(prop.name()) && prop.val() !== this.get(prop.name())) {
+          console.log("child changed " + prop.name());
           this.set(prop.name(), prop.val());
+        }
+
+      }.bind(this));
+
+      var resourceName = this.store.adapter.serializer.rootForType(this.constructor);
+
+      this.get("constructor.relationshipsByName").forEach(function(name, relationship) {
+        if (relationship.kind == "hasMany") {
+          if (relationship.options.embedded == "always") {
+            ref.child(relationship.key).on("child_added", function(snapshot) {
+              var id = snapshot.name();
+
+              // todo: likely very inefficient. may be a better way to get
+              // list of ids - see how it's done when loading records
+              var ids = this.get(relationship.key).map(function(item) {return item.get("id")});
+              if (ids.contains(id)) { return; }
+
+              var data = snapshot.val();
+              var id = snapshot.name();
+              data.id = id
+              
+              // find belongsTo key that matches the relationship
+              var match;
+              Ember.get(relationship.type, "relationshipsByName").forEach(function(name, relation) {
+                if (relation.kind == "belongsTo" && relation.type == relationship.parentType)
+                  match = name;
+              });
+
+              if(match) data[match] = this;
+
+              var rec = relationship.type.createRecord(data);
+
+              // keeps the record from being attempted to be saved back to
+              // the server
+              rec.get('stateManager').send('becameClean');                
+            }.bind(this));
+          }
         }
       }.bind(this));
     }.bind(this));
   },
 
 });
-

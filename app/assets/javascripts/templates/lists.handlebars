@@ -5,13 +5,11 @@
     {{#each controller}}
       {{#if isLoaded}}
         <div class="list">
-          <h3>{{title}}</h3>
+          {{view RealtimeTodos.TitleView valueBinding="title" class="title"}}
           {{#render 'items' items}}
             <ul>
               {{#each controller}}
-                {{#view RealtimeTodos.ItemView contentBinding=this tagName='li'}}
-                  {{text}}
-                {{/view}}
+                {{view RealtimeTodos.ItemView contentBinding=this tagName='li'}}
               {{/each}}
               <li><a href="#" {{action "addNewItem" target="controller"}}>Add new item</a></li>
             </ul>
