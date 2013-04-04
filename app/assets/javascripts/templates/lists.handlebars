@@ -6,14 +6,24 @@
       {{#if isLoaded}}
         <div class="list">
           {{view RealtimeTodos.TitleView valueBinding="title" class="title"}}
-          {{id}}
-          {{#render 'items' items}}
+          ID: <code>{{id}}</code>
+          {{#render 'list' this}}
+            {{#render 'items' items}}
+              <ul class="items">
+                {{#each controller}}
+                  {{view RealtimeTodos.ItemView class="item" contentBinding=this tagName='li'}}
+                {{/each}}
+                <li><a href="#" {{action "addNewItem" target="controller"}}>Add new item</a></li>
+                <li><a href="#" {{action "clearDoneItems"}}>Clear done items</a></li>
+              </ul>
+            {{/render}}
+
+            <h4>Users</h4>
             <ul>
-              {{#each controller}}
-                {{view RealtimeTodos.ItemView contentBinding=this tagName='li'}}
+              {{#each users}}
+              <li {{bindAttr class="isOnline"}}>{{email}}</li>
               {{/each}}
-              <li><a href="#" {{action "addNewItem" target="controller"}}>Add new item</a></li>
-              <li><a href="#" {{action "clearDoneItems"}}>Clear done items</a></li>
+              <li><a href="#" {{action "addUser"}}>Add user to list</a></li>
             </ul>
           {{/render}}
         </div>

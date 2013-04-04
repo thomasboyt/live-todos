@@ -4,5 +4,5 @@ RealtimeTodos.Item = DS.Firebase.LiveModel.extend({
 
   isEditing: false,
 
-  list: DS.belongsTo("RealtimeTodos.List")
+  list: DS.belongsTo("RealtimeTodos.List", {live: true})
 });

@@ -15,5 +15,6 @@ RealtimeTodos.ItemsController = Ember.ArrayController.extend({
     };
 
     RealtimeTodos.store.commit();
-  }
+  },
+
 });

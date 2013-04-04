@@ -1,6 +1,6 @@
 RealtimeTodos.List = DS.Firebase.LiveModel.extend({
   title: DS.attr('string'),
-  items: DS.hasMany("RealtimeTodos.Item", {embedded: 'always'}),
+  items: DS.hasMany("RealtimeTodos.Item", {live: true}),
 
-  users: DS.hasMany("RealtimeTodos.User")
+  users: DS.hasMany("RealtimeTodos.User", {live: true})
 });

@@ -1,3 +1,6 @@
 RealtimeTodos.User = DS.Firebase.LiveModel.extend({
-  lists: DS.hasMany("RealtimeTodos.List")
+  email: DS.attr('string'),
+  isOnline: DS.attr('boolean'),
+
+  lists: DS.hasMany("RealtimeTodos.List", {live: true})
 });

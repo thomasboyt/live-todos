@@ -2,8 +2,10 @@
   "rules": {
     "lists": {
       "$list": {
-        ".read": "data.child('users').hasChild(auth.id)",
-        ".write": "data.child('users').hasChild(auth.id)"
+        // the "or" statement allows the creating user to actually add to the list
+        // TODO: validations
+        ".read":  "data.child('users').hasChild(auth.id)  || !(data.child('users').hasChildren())",
+        ".write": "data.child('users').hasChild(auth.id) || !(data.child('users').hasChildren())"
       }
     },
     "users": {
