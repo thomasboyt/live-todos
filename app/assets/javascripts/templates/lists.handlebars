@@ -6,6 +6,7 @@
       {{#if isLoaded}}
         <div class="list">
           {{view RealtimeTodos.TitleView valueBinding="title" class="title"}}
+          {{id}}
           {{#render 'items' items}}
             <ul>
               {{#each controller}}

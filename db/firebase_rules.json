@@ -2,8 +2,14 @@
   "rules": {
     "lists": {
       "$list": {
-        ".read": "data.child('users').child(auth.id).exists()",
-        ".write": "data.child('users').child(auth.id).exists()"
+        ".read": "data.child('users').hasChild(auth.id)",
+        ".write": "data.child('users').hasChild(auth.id)"
+      }
+    },
+    "users": {
+      "$user": {
+        ".read": "$user == auth.id",
+        ".write": "$user == auth.id"
       }
     }
   }

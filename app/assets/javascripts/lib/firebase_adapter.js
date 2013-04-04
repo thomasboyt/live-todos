@@ -24,12 +24,12 @@ DS.Firebase.Serializer = DS.JSONSerializer.extend({
 
   extractHasMany: function(parent, data, key) {
     var items = data[key];
-    var ids = [];
-    for (i in items) {
-      ids.push(items[i]);
+    if (items) {
+      console.log(Object.keys(items));
+      return Object.keys(items);
     }
-    
-    return ids;
+    else
+      return [];
   },
 
   extractEmbeddedHasMany: function(loader, relationship, array, parent, prematerialized) { 
@@ -68,13 +68,13 @@ DS.Firebase.Serializer = DS.JSONSerializer.extend({
       record.getRef().child(key).once("value", function(snapshot) {
         var ids = [];
         snapshot.forEach(function (childSnap) {
-          ids.push(childSnap.val());
+          ids.push(childSnap.name());
         });
 
         manyArray.forEach(function (childRecord) {
           childRecord.getRef(record.get("id"));     // hacky - forces id creation
           if (!ids.contains(childRecord.get("id")))
-            record.getRef().child(key).push(childRecord.get("id"));
+            record.getRef().child(key).child(childRecord.get("id")).set(true);
         });
       });
 
@@ -324,7 +324,7 @@ DS.Firebase.LiveModel = DS.Model.extend({
 
           else {
             ref.child(relationship.key).on("child_added", function(snapshot) {
-              var id = snapshot.val();
+              var id = snapshot.name();
 
               var ids = this.get(relationship.key).map(function(item) {return item.get("id")});
               if (ids.contains(id)) { return; }
