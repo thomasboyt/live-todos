@@ -22,6 +22,20 @@ DS.Firebase.Serializer = DS.JSONSerializer.extend({
     return rootedJSON;
   },
 
+  rootForType: function(type) {
+    var map = this.mappings.get(type)
+    if (map && map.resourceName) return map.resourceName;
+
+    var typeString = type.toString();
+
+    Ember.assert("Your model must not be anonymous. It was " + type, typeString.charAt(0) !== '(');
+
+    // use the last part of the name as the URL
+    var parts = typeString.split(".");
+    var name = parts[parts.length - 1];
+    return name.replace(/([A-Z])/g, '_$1').toLowerCase().slice(1);
+  },
+
   extractHasMany: function(parent, data, key) {
     var items = data[key];
     var ids = [];
@@ -321,9 +335,15 @@ DS.Firebase.LiveModel = DS.Model.extend({
           else {
             ref.child(relationship.key).on("child_added", function(snapshot) {
               var id = snapshot.name();
+              console.log(id);
 
               var ids = this._data.hasMany[relationship.key];
-              if (ids.contains(id)) { return; }
+              var state = this.get("stateManager.currentState.name");
+             
+              // TODO: TEST THE FUCK OUT OF THIS.
+              if (state === "inFlight") {return;}
+              if (ids == undefined) {return;}
+              if (ids.contains(id)) {return;}
 
               var mdl = relationship.type.find(id);
               
