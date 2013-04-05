@@ -10,11 +10,7 @@ RealtimeTodos.ListController = Ember.ObjectController.extend({
     var didLoad = function() {
       list.get("users").pushObject(user);
 
-      // this gets around a pretty gross issue: using the ember data adapter,
-      // there's no way to reference and interact with relationships without getting
-      // them, whether they are relational or embedded. thus, i use a version
-      // of the model that doesn't have a lists prop, which works fine until
-      // i need to actually need to add to the lists, in which case, well, this.
+      // see: https://github.com/thomasboyt/live-todos/wiki/Postmortem-on-Associations-Problem
       RealtimeTodos.store.adapter.fb.child("users").child(user.get("id"))
         .child("lists").child(list.get("id")).set(true);
       RealtimeTodos.store.commit();

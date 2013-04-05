@@ -335,15 +335,14 @@ DS.Firebase.LiveModel = DS.Model.extend({
           else {
             ref.child(relationship.key).on("child_added", function(snapshot) {
               var id = snapshot.name();
-              console.log(id);
 
               var ids = this._data.hasMany[relationship.key];
               var state = this.get("stateManager.currentState.name");
-             
-              // TODO: TEST THE FUCK OUT OF THIS.
-              if (state === "inFlight") {return;}
-              if (ids == undefined) {return;}
-              if (ids.contains(id)) {return;}
+
+              // below: the magic of ember data
+              if (state === "inFlight") {return;}   // if inFlight, id will not be pushed to hasMany yet.
+              if (ids == undefined)     {return;}   // this one is pretty baffling.
+              if (ids.contains(id))     {return;}   // this one is obvious, and in a perfect world would be the only one needed.
 
               var mdl = relationship.type.find(id);
               
